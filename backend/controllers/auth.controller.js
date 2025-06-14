@@ -3,6 +3,7 @@ import { sendVerificationEmail , sendWelcomeEmail } from "../mailtrap/emails.js"
 import { generateTokenAndSetCookies } from "../utils/generateTokenAndSetCookies.js"
 import bcrypt from "bcryptjs"
 
+
 export const signup = async (req , res) =>{
     const {email , name , password} = req.body
    try {
@@ -73,11 +74,37 @@ export const verifyEmail = async (req , res) =>{
 }
 
 
-
 export const login = async (req , res) =>{
+    const {email , password} = req.body
+    try {
+
+        const user = await User.findOne({email})
+        if(!user) return res.status(400).json({success:false , message:"Invalid creditional"})
+        
+            const isValidPassword = await bcrypt.compare(password , user.password)
+            if(!isValidPassword) return res.status(400).json({success:false , message:"Invaild Password"})
+
+                generateTokenAndSetCookies(res , user._id)
+
+                user.lastLogin = Date.now()
+                await user.save()
+
+                res.status(200).json({success:true ,
+                    message:"User Login Sucessfully",
+                    user:{
+                        ...user._doc,
+                        password:undefined
+                    }
+                })
+        
+    } catch (error) {
+        console.log(error.nessage);
+        res.status(500).json({success:false , message:error.message})
+    }
     res.send("login")
 }
 
 export const logout = async (req , res) =>{
-    res.send("logout")
+    res.clearCookie('token');
+    res.status(200).json({success:true , message:"Logout sucessfully"})
 }
