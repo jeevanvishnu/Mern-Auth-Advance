@@ -1,7 +1,9 @@
 import { User } from "../models/user.model.js"
-import { sendVerificationEmail , sendWelcomeEmail } from "../mailtrap/emails.js"
+import { sendVerificationEmail , sendWelcomeEmail , sendPasswordResetEmail} from "../mailtrap/emails.js"
 import { generateTokenAndSetCookies } from "../utils/generateTokenAndSetCookies.js"
 import bcrypt from "bcryptjs"
+import cyprto from "crypto"
+
 
 
 export const signup = async (req , res) =>{
@@ -76,6 +78,7 @@ export const verifyEmail = async (req , res) =>{
 
 export const login = async (req , res) =>{
     const {email , password} = req.body
+    console.log(email)
     try {
 
         const user = await User.findOne({email})
@@ -102,6 +105,35 @@ export const login = async (req , res) =>{
         res.status(500).json({success:false , message:error.message})
     }
     res.send("login")
+}
+
+export const forgotEmail =  async(req , res) =>{
+    const {email} = req.body
+    try {
+
+        const user = await User.findOne({email})
+        if(!user) return res.status(400).json({success:false , message:"User is not found"})
+
+            const resetToken = cyprto.randomBytes(20).toString("hex")
+            console.log(resetToken);
+
+            const resetTokenExperied = Date.now() + 1 * 60 * 60 * 1000
+            console.log(resetTokenExperied);
+            
+            user.resetPasswordToken = resetToken,
+            user.resetPasswordExperiedAt = resetTokenExperied
+
+            await sendPasswordResetEmail(user.email ,`${process.env.CLIENT_URL}/reset-password/${resetToken}` )
+
+            user.save()
+
+            res.status(200).json({success:true , message:"Password reset link send your email"})
+        
+    } catch (error) {
+        console.log(error.message);
+        res.status(500).json({success:false , message:"Internal server error"})
+        
+    }
 }
 
 export const logout = async (req , res) =>{
