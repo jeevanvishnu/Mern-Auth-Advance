@@ -1,8 +1,9 @@
 import { User } from "../models/user.model.js"
-import { sendVerificationEmail , sendWelcomeEmail , sendPasswordResetEmail} from "../mailtrap/emails.js"
+import { sendVerificationEmail , sendWelcomeEmail , sendPasswordResetEmail , sendResendSucessEmail} from "../mailtrap/emails.js"
 import { generateTokenAndSetCookies } from "../utils/generateTokenAndSetCookies.js"
 import bcrypt from "bcryptjs"
 import cyprto from "crypto"
+
 
 
 
@@ -133,6 +134,35 @@ export const forgotEmail =  async(req , res) =>{
         console.log(error.message);
         res.status(500).json({success:false , message:"Internal server error"})
         
+    }
+}
+
+export const reserPassword = async (req , res) =>{
+    const {token} = req.params
+    const {password} = req.body
+    console.log(typeof token)
+    try {
+        const user = await User.findOne({
+            resetPasswordToken:token,
+            resetPasswordExperiedAt:{$gt:Date.now()}
+        })
+        
+  
+        if(!user) return res.status(400).json({success:false,
+            message:"Invaild or expired token"
+        })
+
+        const hashedPassword = await bcrypt.hash(password,10)
+        user.password = hashedPassword;
+        user.resetPasswordToken=undefined;
+        user.resetPasswordExperiedAt = undefined
+        await user.save()
+
+        await sendResendSucessEmail(user.email)
+
+    } catch (error) {
+        console.log(error.message);
+        res.status(500).json({status:false , message:error.message})
     }
 }
 
